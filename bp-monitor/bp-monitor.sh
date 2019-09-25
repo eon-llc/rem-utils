@@ -19,7 +19,7 @@ now_n=$(date -d $now +%s%N)
 #---------------------------------
 # SCHEDULE THIS SCRIPT AS CRON
 #---------------------------------
-if ! crontab -l | grep -q $SCRIPT_FILE
+if ! crontab -l | grep -q "$SCRIPT_FILE"
 then
   (crontab -l ; echo "* * * * * ${SCRIPT_DIR}/${SCRIPT_FILE}") | crontab -
 fi
