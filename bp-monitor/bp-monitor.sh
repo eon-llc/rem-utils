@@ -5,9 +5,6 @@
 # load variables from config
 source "./config.conf"
 
-# set bash time zone
-TZ=$TIME_ZONE
-
 # full path to config file for convenience
 CONFIG_FILE_PATH="${SCRIPT_DIR}/config.conf"
 
