@@ -18,15 +18,15 @@ now_n=$(date -d $now +%s%N)
 #---------------------------------
 if ! crontab -l | grep -q "$SCRIPT_FILE"
 then
-  (crontab -l ; echo "* * * * * ${SCRIPT_DIR}/${SCRIPT_FILE}") | crontab -
+  (crontab -l ; echo "* * * * * ${SCRIPT_DIR}/${SCRIPT_FILE}" >> "${SCRIPT_DIR}/${SCRIPT_LOG_FILE}" 2>&1) | crontab -
 fi
 
 #---------------------------------
 # LOG FILE STATE TEST & MAINTENANCE
 #---------------------------------
-log_last_modified_s=$(date -r $LOG_FILE +%s)
+log_last_modified_s=$(date -r $NODE_LOG_FILE +%s)
 modified_diff=$(( $now_s - $log_last_modified_s ))
-log_byte_size=$(stat -c%s $LOG_FILE)
+log_byte_size=$(stat -c%s $NODE_LOG_FILE)
 
 # if log has not been modified
 # within the last 5 minutes
@@ -36,7 +36,7 @@ fi
 
 # if log is larger than specified threshold
 if [ $(( $log_byte_size / 1000000)) -gt $MAX_LOG_SIZE ]; then
-    sudo truncate -s 0 $LOG_FILE
+    sudo truncate -s 0 $NODE_LOG_FILE
 fi
 
 #---------------------------------
