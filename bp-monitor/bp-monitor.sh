@@ -3,7 +3,7 @@
 # SETUP
 #---------------------------------
 # load variables from config
-source "./config.conf"
+source "/root/rem-utils/bp-monitor/config.conf"
 
 # full path to config file for convenience
 CONFIG_FILE_PATH="${SCRIPT_DIR}/config.conf"
@@ -79,11 +79,10 @@ if [[ -z "${net_peers_response// }" ]] || [[ "Failed" =~ ^$net_peers_response ]]
     alerts+=( "Failed to receive a response from (remcli net peers)" )
 else
     last_handshake=$(jq '.[0].last_handshake.time | tonumber' <<< ${net_peers_response})
-    diff_n=$(( $now_n - $last_handshake ))
 
     # if peer time is older than 3 minutes, in nanoseconds
-    if [ $diff_n -gt 180000000000 ] ; then
-        alerts+=( "Last peer handshake was $(( diff_n / 1000000000 / 60 )) minutes ago" )
+    if [ $last_handshake -eq 0 ] ; then
+        alerts+=( "Peer handshake never took place" )
     fi
 fi
 
@@ -124,7 +123,7 @@ fi
 #---------------------------------
 if [ $(date +%H:%M) == $DAILY_STATUS_AT ]; then
     summary="\`\`\`Daily Summary\n---------------------------------------"
-    summary="${summary}\nCron job is still running."
+    summary="${summary}\nCron job is still running, scheduled to check in at ${DAILY_STATUS_AT} UTC every day."
     summary="${summary}\n---------------------------------------\`\`\`"
 
     # send summary
