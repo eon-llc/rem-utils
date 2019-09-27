@@ -18,7 +18,7 @@ now_n=$(date -d $now +%s%N)
 #---------------------------------
 if ! crontab -l | grep -q "$SCRIPT_FILE"
 then
-  (crontab -l ; echo "* * * * * ${SCRIPT_DIR}/${SCRIPT_FILE}" >> "${SCRIPT_DIR}/${SCRIPT_LOG_FILE}" 2>&1) | crontab -
+  (crontab -l ; echo "* * * * * ${SCRIPT_DIR}/${SCRIPT_FILE} >> ${SCRIPT_DIR}/${SCRIPT_LOG_FILE} 2>&1") | crontab -
 fi
 
 #---------------------------------
