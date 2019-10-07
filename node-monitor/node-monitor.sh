@@ -101,7 +101,7 @@ if $IS_BP; then
 
     fi
 
-    # claim every 24 hours, seconds
+    # claim every 24 hours
     last_claim_s=$(date -d $LAST_CLAIM +%s)
     claim_diff=$(( $now_s - $last_claim_s ))
 
@@ -130,7 +130,7 @@ if [ ${#alerts[@]} -gt 0 ]; then
     # time difference is in seconds, alert threshold is in minutes
     if [ $diff_s -ge $(( $ALERT_THRESHOLD * 60 )) ]; then
 
-        alert="\`\`\`Block Producer Alert (${ALERT_THRESHOLD} minute frequency)\n---------------------------------------"
+        alert="\`\`\`Alert (${ALERT_THRESHOLD} minute frequency)\n---------------------------------------"
 
         for i in "${alerts[@]}"
         do
