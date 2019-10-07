@@ -3,12 +3,10 @@
 # SETUP
 #---------------------------------
 # load variables from config
-source "/root/rem-utils/bp-monitor/config.conf"
-
-# full path to config file for convenience
-CONFIG_FILE_PATH="${SCRIPT_DIR}/config.conf"
+source "/root/rem-utils/node-monitor/config.conf"
 
 alerts=()
+messages=()
 now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 now_s=$(date -d $now +%s)
 now_n=$(date -d $now +%s%N)
@@ -65,7 +63,7 @@ else
     fi
 
     # update last irreversible block number
-    sed -i "s/last_irreversible_block_num=.*/last_irreversible_block_num=$li_block_num/" $CONFIG_FILE_PATH
+    sed -i "s/last_irreversible_block_num=.*/last_irreversible_block_num=$li_block_num/" $SCRIPT_DIR/$CONFIG_FILE
 fi
 
 #---------------------------------
@@ -87,6 +85,39 @@ else
 fi
 
 #---------------------------------
+# VOTE AND CLAIM REWARDS
+#---------------------------------
+if $IS_BP; then
+
+    # unlock wallet
+    remcli wallet unlock < /root/walletpass
+
+    # vote every week
+    if [ $(date +%A) == $VOTE_DAY ] && [ $(date +%H:%M) == $VOTE_TIME ];then
+
+        # cast votes
+        remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f
+        messages+=( "Voted for producers: ${PRODUCERS_TO_VOTE}" )
+
+    fi
+
+    # claim every 24 hours, seconds
+    last_claim_s=$(date -d $LAST_CLAIM +%s)
+    claim_diff=$(( $now_s - $last_claim_s ))
+
+    if [ $claim_diff -gt (( 24 * 60 * 60 )) ]; then
+
+        before=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
+        remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f
+        after=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
+        reward=$(( $after - $before))
+        messages+=( "Collected ${reward} REM in rewards" )
+
+    fi
+
+fi
+
+#---------------------------------
 # SEND ALERTS IF PROBLEMS WERE FOUND
 #---------------------------------
 # if there are alerts
@@ -94,26 +125,25 @@ if [ ${#alerts[@]} -gt 0 ]; then
 
     # if we haven't sent a message recently
     last_alert_s=$(date -d $LAST_ALERT +%s)
-    diff=$(( $now_s - $last_alert_s ))
+    diff_s=$(( $now_s - $last_alert_s ))
 
-    # time difference is in seconds
-    if [ $diff -ge $(( $ALERT_THRESHOLD * 60 )) ];
-    then
+    # time difference is in seconds, alert threshold is in minutes
+    if [ $diff_s -ge $(( $ALERT_THRESHOLD * 60 )) ]; then
 
-        message="\`\`\`Block Producer Alert (${ALERT_THRESHOLD} minute frequency)\n---------------------------------------"
+        alert="\`\`\`Block Producer Alert (${ALERT_THRESHOLD} minute frequency)\n---------------------------------------"
 
         for i in "${alerts[@]}"
         do
-            message="${message}\n- ${i}"
+            alert="${alert}\n- ${i}"
         done
 
-        message="${message}\n---------------------------------------\`\`\`"
+        alert="${alert}\n---------------------------------------\`\`\`"
 
         # send alert
-        curl -H "Content-Type: application/json" -X POST -d '{"username": "SYSTEM", "content": "'"${message}"'"}' ${DISCORD_CHANNEL}
+        curl -H "Content-Type: application/json" -X POST -d '{"username": "'"${NODE_NAME}"'", "content": "'"${alert}"'"}' ${DISCORD_CHANNEL}
 
         # update the timestamp
-        sed -i "s/LAST_ALERT=.*/LAST_ALERT=$now/" $CONFIG_FILE_PATH
+        sed -i "s/LAST_ALERT=.*/LAST_ALERT=$now/" $SCRIPT_DIR/$CONFIG_FILE
 
     fi
 fi
@@ -124,11 +154,17 @@ fi
 if [ $(date +%H:%M) == $DAILY_STATUS_AT ]; then
     summary="\`\`\`Daily Summary\n---------------------------------------"
     summary="${summary}\nCron job is still running, scheduled to check in at ${DAILY_STATUS_AT} UTC every day."
+
+    for i in "${messages[@]}"
+    do
+        summary="${summary}\n- ${i}"
+    done
+
     summary="${summary}\n---------------------------------------\`\`\`"
 
     # send summary
-    curl -H "Content-Type: application/json" -X POST -d '{"username": "SYSTEM", "content": "'"${summary}"'"}' ${DISCORD_CHANNEL}
+    curl -H "Content-Type: application/json" -X POST -d '{"username": "'"${NODE_NAME}"'", "content": "'"${summary}"'"}' ${DISCORD_CHANNEL}
 
     # update the timestamp
-    sed -i "s/LAST_STATUS=.*/LAST_STATUS=$now/" $CONFIG_FILE_PATH
+    sed -i "s/LAST_STATUS=.*/LAST_STATUS=$now/" $SCRIPT_DIR/$CONFIG_FILE
 fi
