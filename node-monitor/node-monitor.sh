@@ -90,28 +90,40 @@ fi
 if $IS_BP; then
 
     # unlock wallet
-    remcli wallet unlock < /root/walletpass
+    remcli wallet unlock < /root/walletpass > 2>&1
 
     # vote every week
     if [ $(date +%A) == $VOTE_DAY ] && [ $(date +%H:%M) == $VOTE_TIME ];then
 
         # cast votes
-        remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f
-        messages+=( "Voted for producers: ${PRODUCERS_TO_VOTE}" )
-
+        vote_response="$(remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f)"
+        # if vote succeeded
+        if [[ "executed transaction" =~ ^$vote_response ]]; then
+            messages+=( "Voted for producers: ${PRODUCERS_TO_VOTE}" )
+        else
+            alerts+=( "Failed to vote for producers" )
+        fi
     fi
 
     # claim every 24 hours
     last_claim_s=$(date -d $LAST_CLAIM +%s)
     claim_diff=$(( $now_s - $last_claim_s ))
+    seconds_in_day=$((24 * 60 * 60))
 
-    if [ $claim_diff -gt (( 24 * 60 * 60 )) ]; then
+    if [ $claim_diff -gt $seconds_in_day ]; then
 
         before=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
-        remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f
+        claim_response="$(remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f)"
         after=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
-        reward=$(( $after - $before))
-        messages+=( "Collected ${reward} REM in rewards" )
+        reward=$(echo "$after - $before" | bc)
+
+        if [ $reward -gt 0 ]; then
+            messages+=( "Collected ${reward} REM in rewards" )
+        else
+            if [[ $claim_response != *"already claimed rewards"* ]]; then
+                alerts+=( "Failed to claim rewards" )
+            fi
+        fi
 
     fi
 
