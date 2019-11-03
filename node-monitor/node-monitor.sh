@@ -89,17 +89,19 @@ fi
 #---------------------------------
 if $IS_BP; then
 
-    # unlock wallet
-    remcli wallet unlock < /root/walletpass > 2>&1
+    # unlock wallet, suppress error output
+    # common when unlocking an already unlocked wallet
+    remcli wallet unlock < /root/walletpass >/dev/null 2>&1
 
     # vote every week
     if [ $(date +%A) == $VOTE_DAY ] && [ $(date +%H:%M) == $VOTE_TIME ];then
 
         # cast votes
-        vote_response="$(remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f)"
+        vote_response="$((remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f) 2>&1)"
         # if vote succeeded
         if [[ "executed transaction" =~ ^$vote_response ]]; then
             messages+=( "Voted for producers: ${PRODUCERS_TO_VOTE}" )
+            sed -i "s/LAST_VOTE=.*/LAST_VOTE=$now/" $SCRIPT_DIR/$CONFIG_FILE
         else
             alerts+=( "Failed to vote for producers" )
         fi
@@ -113,20 +115,25 @@ if $IS_BP; then
     if [ $claim_diff -gt $seconds_in_day ]; then
 
         before=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
-        claim_response="$(remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f)"
-        after=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
-        reward=$(echo "$after - $before" | bc)
+        claim_response="$((remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f) 2>&1)"
 
-        if [ $reward -gt 0 ]; then
-            messages+=( "Collected ${reward} REM in rewards" )
+        if [[ -z "${claim_response// }" ]] || [[ "Failed" =~ ^$claim_response ]]; then
+            alerts+=( "Failed to receive a response from (remcli system claimrewards)" )
         else
-            if [[ $claim_response != *"already claimed rewards"* ]]; then
-                alerts+=( "Failed to claim rewards" )
+
+            if [[ $claim_response != *"already claimed"* ]]; then
+                after=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
+                reward=$(echo "$after - $before" | bc)
+
+                if (( $(echo "$reward > 0" |bc -l) )); then
+                    messages+=( "Collected ${reward} REM in rewards" )
+                    sed -i "s/LAST_CLAIM=.*/LAST_CLAIM=$now/" $SCRIPT_DIR/$CONFIG_FILE
+                else
+                    alerts+=( "Failed to claim rewards" )
+                fi
             fi
         fi
-
     fi
-
 fi
 
 #---------------------------------
