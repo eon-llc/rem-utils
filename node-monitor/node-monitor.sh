@@ -97,13 +97,17 @@ if $IS_BP; then
     if [ $(date +%A) == $VOTE_DAY ] && [ $(date +%H:%M) == $VOTE_TIME ];then
 
         # cast votes
-        vote_response="$((remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f) 2>&1)"
-        # if vote succeeded
-        if [[ "executed transaction" =~ ^$vote_response ]]; then
-            messages+=( "Voted for producers: ${PRODUCERS_TO_VOTE}" )
-            sed -i "s/LAST_VOTE=.*/LAST_VOTE=$now/" $SCRIPT_DIR/$CONFIG_FILE
+        vote_response="$(remcli system voteproducer prods $ACCOUNT_NAME $PRODUCERS_TO_VOTE -p $ACCOUNT_NAME@$PERMISSION_NAME -f 2>&1)"
+
+        if [[ -z "${vote_response// }" ]] || [[ "Failed" =~ ^$vote_response ]]; then
+            alerts+=( "Failed to receive a response from (remcli system voteproducer)" )
         else
-            alerts+=( "Failed to vote for producers" )
+            if [[ $vote_response != *"error"* ]]; then
+                messages+=( "Voted for producers: ${PRODUCERS_TO_VOTE}" )
+                sed -i "s/LAST_VOTE=.*/LAST_VOTE=$now/" $SCRIPT_DIR/$CONFIG_FILE
+            else
+                alerts+=( "Failed to vote for producers" )
+            fi
         fi
     fi
 
@@ -115,12 +119,11 @@ if $IS_BP; then
     if [ $claim_diff -gt $seconds_in_day ]; then
 
         before=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
-        claim_response="$((remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f) 2>&1)"
+        claim_response="$(remcli system claimrewards $ACCOUNT_NAME -p $ACCOUNT_NAME@$PERMISSION_NAME -f 2>&1)"
 
         if [[ -z "${claim_response// }" ]] || [[ "Failed" =~ ^$claim_response ]]; then
             alerts+=( "Failed to receive a response from (remcli system claimrewards)" )
         else
-
             if [[ $claim_response != *"already claimed"* ]]; then
                 after=$(remcli get currency balance rem.token $ACCOUNT_NAME | sed 's/[^0-9.]*//g')
                 reward=$(echo "$after - $before" | bc)
@@ -168,17 +171,29 @@ if [ ${#alerts[@]} -gt 0 ]; then
 fi
 
 #---------------------------------
-# SEND DAILY SUMMARY
+# SEND MESSAGES FOR SUCCESSFUL ACTIONS
+#---------------------------------
+# if there are messages
+if [ ${#messages[@]} -gt 0 ]; then
+    message="\`\`\`Message\n---------------------------------------"
+
+    for i in "${messages[@]}"
+    do
+        message="${message}\n- ${i}"
+    done
+
+    message="${message}\n---------------------------------------\`\`\`"
+
+    # send message
+    curl -H "Content-Type: application/json" -X POST -d '{"username": "'"${NODE_NAME}"'", "content": "'"${message}"'"}' ${DISCORD_CHANNEL}
+fi
+
+#---------------------------------
+# SEND DAILY CHECK-IN
 #---------------------------------
 if [ $(date +%H:%M) == $DAILY_STATUS_AT ]; then
     summary="\`\`\`Daily Summary\n---------------------------------------"
     summary="${summary}\nCron job is still running, scheduled to check in at ${DAILY_STATUS_AT} UTC every day."
-
-    for i in "${messages[@]}"
-    do
-        summary="${summary}\n- ${i}"
-    done
-
     summary="${summary}\n---------------------------------------\`\`\`"
 
     # send summary
