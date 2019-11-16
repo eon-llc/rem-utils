@@ -67,8 +67,9 @@ else
 fi
 
 #---------------------------------
-# TEST NET PEER STATE
+# TEST CONNECTION TO REMME PEER
 #---------------------------------
+# eventually we may want to check this for all peers
 # test "remcli net peers" last handshake time
 net_peers_response="$(remcli net peers)"
 
@@ -76,11 +77,11 @@ net_peers_response="$(remcli net peers)"
 if [[ -z "${net_peers_response// }" ]] || [[ "Failed" =~ ^$net_peers_response ]]; then
     alerts+=( "Failed to receive a response from (remcli net peers)" )
 else
-    last_handshake=$(jq '.[0].last_handshake.time | tonumber' <<< ${net_peers_response})
+    last_handshake=$(jq ".[] | select(.peer == \"${REMME_PEER}\") | .last_handshake.time | tonumber" <<< ${net_peers_response})
 
-    # if peer time is older than 3 minutes, in nanoseconds
+    # if peer handshake time is 0 it never took place
     if [ $last_handshake -eq 0 ] ; then
-        alerts+=( "Peer handshake never took place" )
+        alerts+=( "Peer handshake with Remme never took place" )
     fi
 fi
 
