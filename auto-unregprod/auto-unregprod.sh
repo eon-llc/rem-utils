@@ -28,7 +28,7 @@ fi
 # COMPARE TIMESTAMPS & UNREGISTER
 #---------------------------------
 now="$(date +%s)"
-last_produced="$(remcli get table rem rem producers -L $PRODUCER_NAME -U $PRODUCER_NAME | jq '.rows[0].last_block_time' -r)"
+last_produced="$(remcli -u https://remchain.remme.io get table rem rem producers -L $PRODUCER_NAME -U $PRODUCER_NAME | jq '.rows[0].last_block_time' -r)"
 last_produced_time=$(date -d $last_produced +"%s")
 difference=$(( ($now-$last_produced_time) / 60))
 
