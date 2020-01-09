@@ -9,14 +9,6 @@ source "${DIR}/config.conf"
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 #---------------------------------
-# INSTALL JQ IF NECESSARY
-#---------------------------------
-if ! dpkg -l jq &>/dev/null; then
-    sudo apt-get -qq -y install jq
-    echo "${timestamp} - Installed jq package because it was missing."
-fi
-
-#---------------------------------
 # SCHEDULE THIS SCRIPT AS CRON
 #---------------------------------
 if ! crontab -l | grep -q "auto-unregprod.sh"
