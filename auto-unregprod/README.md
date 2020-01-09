@@ -3,7 +3,7 @@ Script that monitors last produced block time and unregisters producer in the ev
 
 Clone the repo into your server's root:
 ```
-sudo wget https://github.com/eon-llc/rem-utils
+git clone https://github.com/eon-llc/rem-utils
 cd /root/rem-utils/auto-unregprod/
 ```
 

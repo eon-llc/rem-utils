@@ -34,7 +34,7 @@ difference=$(( ($now-$last_produced_time) / 60))
 
 if [[ $difference > $THRESHOLD ]]; then
     remcli wallet unlock < /root/walletpass
-    remcli system unregprod $PRODUCER_NAME -p producer@$PRODUCER_NAME
+    remcli -u https://remchain.remme.io system unregprod $PRODUCER_NAME -p producer@$PRODUCER_NAME
     echo "${timestamp} - Unregistered due to ${difference} minutes of missed blocks."
 fi
 
