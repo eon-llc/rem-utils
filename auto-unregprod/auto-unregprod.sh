@@ -55,7 +55,7 @@ difference=$(( ($now-$last_produced_time) / 60))
 
 if [[ $difference > $THRESHOLD ]] && [ "$is_active" -eq "1" ]; then
 
-    remcli wallet unlock < /root/walletpass
+    remcli wallet unlock < /root/walletpass > /dev/null 2>&1
     unreg_result="$(unregister)"
 
     if [[ $unreg_result == *"executed transaction"* ]]; then
