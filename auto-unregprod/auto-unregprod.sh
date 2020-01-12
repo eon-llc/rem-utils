@@ -22,7 +22,7 @@ fi
 get_producer_data () {
     for api in "${APIS[@]}"
     do
-        result="$(remcli -u $api get table rem rem producers -L $PRODUCER_NAME -U $PRODUCER_NAME)"
+        result="$(remcli -u $api get table rem rem producers -L $PRODUCER_NAME -U $PRODUCER_NAME 2>&1)"
 
         if [[ $result == *"$PRODUCER_NAME"* ]]; then
             echo "$result"
@@ -34,7 +34,7 @@ get_producer_data () {
 unregister () {
     for api in "${APIS[@]}"
     do
-        result="$(remcli -u $api system unregprod $PRODUCER_NAME -p $PRODUCER_NAME@$PERMISSION)"
+        result="$(remcli -u $api system unregprod $PRODUCER_NAME -p $PRODUCER_NAME@$PERMISSION 2>&1)"
 
         if [[ $result == *"executed transaction"* ]]; then
             echo "$result"
